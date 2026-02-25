@@ -1,0 +1,224 @@
+import { _decorator, Component, Node, director, Prefab, instantiate, Vec3, UITransform } from 'cc';
+import { Player } from './Player';
+import { Obstacle } from './Obstacle';
+const { ccclass, property } = _decorator;
+
+@ccclass('Game')
+export class Game extends Component {
+    // Player 节点，用于获取主角弹跳的高度，和控制主角行动开关
+    @property({type: Node})
+    player: Node | null = null;
+
+    // 障碍物预制体
+    @property({type: Prefab})
+    obstaclePrefab: Prefab | null = null;
+
+    // 障碍物生成间隔
+    @property
+    obstacleInterval: number = 300;
+
+    // 最小缺口宽度
+    @property
+    minGapWidth: number = 120;
+
+    // 最大缺口宽度
+    @property
+    maxGapWidth: number = 200;
+
+    // 障碍物容器节点
+    private obstacleContainer: Node | null = null;
+
+    // 所有障碍物
+    private obstacles: Obstacle[] = [];
+
+    // 屏幕高度
+    private screenHeight: number = 0;
+
+    // 屏幕中心Y坐标
+    private screenCenterY: number = 0;
+
+    // 上一个障碍物的Y坐标
+    private lastObstacleY: number = 0;
+
+    // 视角跟随阈值（屏幕中心）
+    private cameraFollowThreshold: number = 0;
+
+    // 得分
+    private score: number = 0;
+
+    onLoad() {
+        // 获取屏幕尺寸
+        if (this.node) {
+            const transform = this.node.getComponent(UITransform);
+            if (transform) {
+                this.screenHeight = transform.contentSize.height;
+                this.screenCenterY = 0; // 屏幕中心Y坐标
+                this.cameraFollowThreshold = this.screenCenterY;
+                console.log('Screen height:', this.screenHeight);
+            } else {
+                console.warn('UITransform component not found on Game node');
+                // 使用默认值
+                this.screenHeight = 960; // 假设屏幕高度为960
+                this.screenCenterY = 0;
+                this.cameraFollowThreshold = this.screenCenterY;
+            }
+        }
+
+        // 创建障碍物容器
+        this.obstacleContainer = new Node('ObstacleContainer');
+        this.node.addChild(this.obstacleContainer);
+
+        // 初始化障碍物 - 从屏幕上方开始生成
+        // 第一个障碍物在屏幕上方200像素处
+        this.lastObstacleY = 200;
+        console.log('Starting obstacle generation at Y:', this.lastObstacleY);
+        this.generateInitialObstacles();
+
+        // 初始化得分
+        this.score = 0;
+    }
+    
+    // 生成初始障碍物
+    generateInitialObstacles() {
+        // 生成4个初始障碍物，间隔为 obstacleInterval
+        const count = 4;
+        for (let i = 0; i < count; i++) {
+            const y = this.lastObstacleY + i * this.obstacleInterval;
+            this.generateObstacleAtPosition(y);
+        }
+        // 更新 lastObstacleY 为最后一个障碍物的位置
+        this.lastObstacleY = this.lastObstacleY + (count - 1) * this.obstacleInterval;
+    }
+
+    // 生成单个障碍物
+    generateObstacle() {
+        this.generateObstacleAtPosition(this.lastObstacleY + this.obstacleInterval);
+        this.lastObstacleY += this.obstacleInterval;
+    }
+
+    // 在指定位置生成障碍物
+    generateObstacleAtPosition(y: number) {
+        if (!this.obstaclePrefab) {
+            console.warn('Obstacle prefab is not set');
+            return;
+        }
+
+        console.log('Generating obstacle at Y:', y);
+
+        // 实例化障碍物
+        const obstacleNode = instantiate(this.obstaclePrefab);
+        this.obstacleContainer!.addChild(obstacleNode);
+
+        // 获取障碍物组件
+        const obstacle = obstacleNode.getComponent(Obstacle);
+        if (!obstacle) {
+            console.warn('Obstacle component not found');
+            return;
+        }
+
+        // 设置随机缺口宽度
+        const gapWidth = this.minGapWidth + Math.random() * (this.maxGapWidth - this.minGapWidth);
+        obstacle.gapWidth = gapWidth;
+
+        // 设置障碍物位置
+        obstacle.setGapPosition(y);
+        console.log('Obstacle created with gap width:', gapWidth);
+
+        // 添加到障碍物列表
+        this.obstacles.push(obstacle);
+    }
+
+    // 检查碰撞
+    checkCollisions() {
+        if (!this.player) return;
+
+        const playerComp = this.player.getComponent(Player);
+        if (!playerComp) return;
+
+        const birdX = this.player.position.x;
+        const birdY = this.player.position.y;
+        const birdRadius = 20; // 小鸟碰撞半径
+
+        // 检查每个障碍物
+        for (const obstacle of this.obstacles) {
+            // 检查碰撞
+            if (obstacle.checkCollision(birdX, birdY, birdRadius)) {
+                // 游戏结束
+                this.gameOver();
+                return;
+            }
+
+            // 检查是否通过缺口
+            if (!obstacle.passed && obstacle.checkPassThrough(birdX, birdY, birdRadius)) {
+                obstacle.passed = true;
+                this.score++;
+                console.log('Score:', this.score);
+            }
+        }
+    }
+
+    // 视角跟随
+    updateCameraFollow() {
+        if (!this.player) return;
+
+        const birdY = this.player.position.y;
+
+        // 如果小鸟超过屏幕中心，移动障碍物向下
+        if (birdY > this.cameraFollowThreshold) {
+            const deltaY = birdY - this.cameraFollowThreshold;
+            
+            // 移动所有障碍物向下
+            for (const obstacle of this.obstacles) {
+                const currentY = obstacle.node.position.y;
+                obstacle.node.setPosition(new Vec3(0, currentY - deltaY, 0));
+            }
+
+            // 保持小鸟在屏幕中心
+            this.player.setPosition(new Vec3(this.player.position.x, this.cameraFollowThreshold, 0));
+
+            // 清理屏幕下方的障碍物
+            this.cleanupObstacles();
+
+            // 检查是否需要生成新的障碍物
+            // 只有当最高障碍物距离屏幕顶部不足一个间隔时才生成新障碍物
+            if (this.obstacles.length > 0) {
+                const topObstacle = this.obstacles[this.obstacles.length - 1];
+                const topObstacleY = topObstacle.node.position.y;
+                const screenTop = this.screenHeight / 2;
+                
+                if (topObstacleY < screenTop + this.obstacleInterval) {
+                    this.generateObstacleAtPosition(topObstacleY + this.obstacleInterval);
+                }
+            }
+        }
+    }
+
+    // 清理屏幕下方的障碍物
+    cleanupObstacles() {
+        const removeY = -this.screenHeight / 2 - 100; // 屏幕下方100像素
+
+        // 移除屏幕下方的障碍物
+        for (let i = this.obstacles.length - 1; i >= 0; i--) {
+            const obstacle = this.obstacles[i];
+            if (obstacle.node.position.y < removeY) {
+                obstacle.node.destroy();
+                this.obstacles.splice(i, 1);
+            }
+        }
+    }
+
+    // 游戏结束
+    gameOver() {
+        console.log('Game Over! Final Score:', this.score);
+        // 可以在这里添加游戏结束逻辑，如显示游戏结束界面
+        // director.loadScene('gameOver');
+    }
+
+    update(dt: number) {
+        // 检查碰撞
+        this.checkCollisions();
+
+        // 更新视角跟随
+        this.updateCameraFollow();
+    }
+}
