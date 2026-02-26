@@ -35,13 +35,13 @@ export class Game extends Component {
     private screenHeight: number = 0;
 
     // 屏幕中心Y坐标
-    private screenCenterY: number = 0;
+    private screenCenterY: number = 800;
 
     // 上一个障碍物的Y坐标
     private lastObstacleY: number = 0;
 
     // 视角跟随阈值（屏幕中心）
-    private cameraFollowThreshold: number = 0;
+    private cameraFollowThreshold: number = 800;
 
     // 得分
     private score: number = 0;
@@ -52,14 +52,14 @@ export class Game extends Component {
             const transform = this.node.getComponent(UITransform);
             if (transform) {
                 this.screenHeight = transform.contentSize.height;
-                this.screenCenterY = 0; // 屏幕中心Y坐标
+                this.screenCenterY = 200; // 屏幕中心Y坐标
                 this.cameraFollowThreshold = this.screenCenterY;
                 console.log('Screen height:', this.screenHeight);
             } else {
                 console.warn('UITransform component not found on Game node');
                 // 使用默认值
                 this.screenHeight = 960; // 假设屏幕高度为960
-                this.screenCenterY = 0;
+                this.screenCenterY = 200;
                 this.cameraFollowThreshold = this.screenCenterY;
             }
         }

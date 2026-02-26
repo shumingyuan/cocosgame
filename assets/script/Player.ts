@@ -5,11 +5,11 @@ const { ccclass, property } = _decorator;
 export class Player extends Component {
     // 主角跳跃高度
     @property
-    jumpHeight: number = 200;
+    jumpHeight: number = 90;
 
     // 主角跳跃持续时间
     @property
-    jumpDuration: number = 0.3;
+    jumpDuration: number = 0.1;
 
     @property({type: AudioClip})
     jumpAudio: AudioClip | null = null;
@@ -21,14 +21,14 @@ export class Player extends Component {
     private sprite: Sprite | null = null;
     private frameIndex = 0;
     private animationTimer = 0;
-    private readonly frameInterval = 0.01; // 每帧停留0.1秒
+    private readonly frameInterval = 0.1; // 每帧停留0.1秒
     private isPlayingAnimation: boolean = false; // 是否正在播放动画
     
     // 速度相关
     private velocityX: number = 0; // 水平速度
     private velocityY: number = 0; // 垂直速度
     private gravity: number = -800; // 重力加速度
-    private groundY: number = 0; // 地面高度
+    private groundY: number = -800; // 地面高度
     
     // 边界相关
     private minX: number = 0; // 最小X坐标
