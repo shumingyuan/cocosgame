@@ -42,12 +42,12 @@
     },
     "_lscale": {
       "__type__": "cc.Vec3",
-      "x": 1,
+      "x": 1.5,
       "y": 1,
       "z": 1
     },
     "_mobility": 0,
-    "_layer": 1073741824,
+    "_layer": 33554432,
     "_euler": {
       "__type__": "cc.Vec3",
       "x": 0,
@@ -92,6 +92,7 @@
       "__id__": 0
     },
     "fileId": "51xOhkDptBeIMZQwfeosso",
+    "instance": null,
     "targetOverrides": null
   }
 ]

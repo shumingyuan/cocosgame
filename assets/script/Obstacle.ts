@@ -15,6 +15,10 @@ export class Obstacle extends Component {
     @property
     gapWidth: number = 150;
 
+    // 缺口偏移（-100表示缺口偏左，100表示缺口偏右）
+    @property
+    gapOffset: number = 0;
+
     // 缺口中心位置（相对于屏幕中心的Y坐标）
     private gapCenterY: number = 0;
 
@@ -86,20 +90,29 @@ export class Obstacle extends Component {
             return obstacle;
         }
 
-        // 获取障碍物宽度
+        // 获取障碍物宽度（树枝长度）
         const obstacleWidth = transform.contentSize.width;
+        
+        // 计算缺口的左右边界
+        // gapOffset 是缺口中心相对于屏幕中心的偏移
+        // gapLeft = gapOffset - gapWidth/2
+        // gapRight = gapOffset + gapWidth/2
+        const gapLeft = this.gapOffset - this.gapWidth / 2;
+        const gapRight = this.gapOffset + this.gapWidth / 2;
         
         // 设置位置
         if (side === 'left') {
-            // 左侧障碍物：从屏幕左边缘开始
-            const xPos = -this.screenWidth / 2 + obstacleWidth / 2;
+            // 左侧树枝：右边缘在 gapLeft 位置
+            // 树枝宽度500，所以左边缘 = gapLeft - 500
+            const xPos = gapLeft - obstacleWidth / 2;
             obstacle.setPosition(new Vec3(xPos, 0, 0));
-            console.log('Left obstacle position:', xPos, 'width:', obstacleWidth);
+            console.log('Left obstacle position:', xPos, 'width:', obstacleWidth, 'gapLeft:', gapLeft);
         } else {
-            // 右侧障碍物：从屏幕右边缘开始
-            const xPos = this.screenWidth / 2 - obstacleWidth / 2;
+            // 右侧树枝：左边缘在 gapRight 位置
+            // 树枝宽度500，所以右边缘 = gapRight + 500
+            const xPos = gapRight + obstacleWidth / 2;
             obstacle.setPosition(new Vec3(xPos, 0, 0));
-            console.log('Right obstacle position:', xPos, 'width:', obstacleWidth);
+            console.log('Right obstacle position:', xPos, 'width:', obstacleWidth, 'gapRight:', gapRight);
         }
         
         return obstacle;
@@ -108,7 +121,7 @@ export class Obstacle extends Component {
     // 设置缺口位置
     setGapPosition(gapCenterY: number) {
         this.gapCenterY = gapCenterY;
-        this.node.setPosition(new Vec3(0, gapCenterY, 0));
+        this.node.setPosition(new Vec3(Math.random() * this.screenWidth - this.screenWidth / 2, gapCenterY, 0));
     }
 
     // 获取缺口中心Y坐标
@@ -123,9 +136,9 @@ export class Obstacle extends Component {
 
     // 检查小鸟是否通过缺口
     checkPassThrough(birdX: number, birdY: number, birdRadius: number): boolean {
-        // 检查小鸟是否在缺口范围内
-        const gapLeft = -this.gapWidth / 2;
-        const gapRight = this.gapWidth / 2;
+        // 计算缺口的左右边界
+        const gapLeft = this.gapOffset - this.gapWidth / 2;
+        const gapRight = this.gapOffset + this.gapWidth / 2;
         
         // 检查小鸟是否在缺口水平范围内
         if (birdX > gapLeft + birdRadius && birdX < gapRight - birdRadius) {
@@ -140,33 +153,52 @@ export class Obstacle extends Component {
     }
 
     // 检查碰撞
-    checkCollision(birdX: number, birdY: number, birdRadius: number): boolean {
+    checkCollision(birdX: number, birdY: number, birdRadius: number, velocityY: number = 0): boolean {
         const obstacleY = this.node.position.y;
+        const obstacleHeight = 30; // 障碍物高度
         
         // 检查小鸟是否在障碍物的Y坐标范围内
-        if (Math.abs(birdY - obstacleY) < birdRadius + 15) { // 15是障碍物半高
-            // 检查左侧障碍物
-            if (this.leftObstacle) {
-                const leftTransform = this.leftObstacle.getComponent(UITransform);
-                if (leftTransform) {
-                    const leftWidth = leftTransform.contentSize.width;
-                    const leftX = this.leftObstacle.position.x;
-                    // 检查小鸟是否在左侧障碍物范围内
-                    if (birdX < leftX + leftWidth / 2 + birdRadius) {
-                        return true; // 碰到左侧障碍物
+        if (Math.abs(birdY - obstacleY) < birdRadius + obstacleHeight / 2) {
+            // 计算缺口的左右边界
+            const gapLeft = this.gapOffset - this.gapWidth / 2;
+            const gapRight = this.gapOffset + this.gapWidth / 2;
+            
+            // 检查小鸟是否在缺口范围内
+            const inGap = birdX > gapLeft - birdRadius && birdX < gapRight + birdRadius;
+            
+            if (!inGap) {
+                // 不在缺口范围内，可能碰撞
+                // 检查左侧障碍物
+                if (this.leftObstacle) {
+                    const leftTransform = this.leftObstacle.getComponent(UITransform);
+                    if (leftTransform) {
+                        const leftWidth = leftTransform.contentSize.width;
+                        const leftX = this.leftObstacle.position.x;
+                        // 检查小鸟是否在左侧障碍物范围内
+                        if (birdX < leftX + leftWidth / 2 + birdRadius) {
+                            // 如果小鸟从上方下落（velocityY < 0），不算碰撞
+                            // 如果小鸟从下方撞击（velocityY >= 0），算碰撞
+                            if (velocityY >= 0 || birdY < obstacleY) {
+                                return true; // 碰到左侧障碍物
+                            }
+                        }
                     }
                 }
-            }
-            
-            // 检查右侧障碍物
-            if (this.rightObstacle) {
-                const rightTransform = this.rightObstacle.getComponent(UITransform);
-                if (rightTransform) {
-                    const rightWidth = rightTransform.contentSize.width;
-                    const rightX = this.rightObstacle.position.x;
-                    // 检查小鸟是否在右侧障碍物范围内
-                    if (birdX > rightX - rightWidth / 2 - birdRadius) {
-                        return true; // 碰到右侧障碍物
+                
+                // 检查右侧障碍物
+                if (this.rightObstacle) {
+                    const rightTransform = this.rightObstacle.getComponent(UITransform);
+                    if (rightTransform) {
+                        const rightWidth = rightTransform.contentSize.width;
+                        const rightX = this.rightObstacle.position.x;
+                        // 检查小鸟是否在右侧障碍物范围内
+                        if (birdX > rightX - rightWidth / 2 - birdRadius) {
+                            // 如果小鸟从上方下落（velocityY < 0），不算碰撞
+                            // 如果小鸟从下方撞击（velocityY >= 0），算碰撞
+                            if (velocityY >= 0 || birdY < obstacleY) {
+                                return true; // 碰到右侧障碍物
+                            }
+                        }
                     }
                 }
             }
