@@ -38,6 +38,7 @@ export class Obstacle extends Component {
         // 获取屏幕宽度 - 使用 view.getVisibleSize() 获取可见区域尺寸
         const visibleSize = view.getVisibleSize();
         this.screenWidth = visibleSize.width;
+        console.log('Obstacle - Screen width:', this.screenWidth);
 
         // 创建左右障碍物
         this.createObstacles();
@@ -50,6 +51,8 @@ export class Obstacle extends Component {
         // 1: 只在右侧
         // 2: 两侧都有
         const obstacleType = Math.floor(Math.random() * 3);
+        
+        console.log('Obstacle type:', obstacleType, '(0: left, 1: right, 2: both)');
 
         if (obstacleType === 0 || obstacleType === 2) {
             // 创建左侧障碍物
@@ -103,11 +106,13 @@ export class Obstacle extends Component {
             // 树枝宽度500，所以左边缘 = gapLeft - 500
             const xPos = gapLeft - obstacleWidth / 2;
             obstacle.setPosition(new Vec3(xPos, 0, 0));
+            console.log('Left obstacle position:', xPos, 'width:', obstacleWidth, 'gapLeft:', gapLeft);
         } else {
             // 右侧树枝：左边缘在 gapRight 位置
             // 树枝宽度500，所以右边缘 = gapRight + 500
             const xPos = gapRight + obstacleWidth / 2;
             obstacle.setPosition(new Vec3(xPos, 0, 0));
+            console.log('Right obstacle position:', xPos, 'width:', obstacleWidth, 'gapRight:', gapRight);
         }
         
         return obstacle;
@@ -129,49 +134,9 @@ export class Obstacle extends Component {
         return this.gapWidth;
     }
 
-    // 检查小鸟是否通过缺口
-    checkPassThrough(birdX: number, birdY: number, birdRadius: number): boolean {
-        // 计算缺口的左右边界
-        const gapLeft = this.gapOffset - this.gapWidth / 2;
-        const gapRight = this.gapOffset + this.gapWidth / 2;
-        
-        // 检查小鸟是否在缺口水平范围内
-        if (birdX > gapLeft + birdRadius && birdX < gapRight - birdRadius) {
-            // 检查小鸟是否在障碍物的Y坐标附近
-            const obstacleY = this.node.position.y;
-            if (Math.abs(birdY - obstacleY) < birdRadius * 2) {
-                return true;
-            }
-        }
-        
-        return false;
-    }
+    
 
-    // 检查与玩家碰撞（使用距离检测）
-    checkCollision(playerNode: Node): boolean {
-        const playerPos = playerNode.position;
-        const collisionRadius = 40; // 碰撞半径
-
-        const checkTreeCollision = (treeNode: Node | null, side: string): boolean => {
-            if (!treeNode) return false;
-            const treePos = treeNode.position;
-            const dx = playerPos.x - treePos.x;
-            const dy = playerPos.y - treePos.y;
-            const distance = Math.sqrt(dx * dx + dy * dy);
-
-            const collided = distance < collisionRadius;
-            if (collided) {
-                console.log('[树枝碰撞检测]', side, '- 距离:', distance.toFixed(2), '玩家:', playerPos.x.toFixed(2), playerPos.y.toFixed(2), '树枝:', treePos.x.toFixed(2), treePos.y.toFixed(2));
-            }
-            return collided;
-        };
-
-        // 检查左右树枝
-        if (checkTreeCollision(this.leftObstacle, '左侧')) return true;
-        if (checkTreeCollision(this.rightObstacle, '右侧')) return true;
-
-        return false;
-    }
+    
 
     update(dt: number) {
         // 可以在这里添加障碍物的动画效果

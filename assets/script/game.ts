@@ -225,32 +225,7 @@ export class Game extends Component {
         this.enemies.push(enemy);
     }
 
-    // 检查碰撞
-    checkCollisions() {
-        if (!this.player) return;
-
-        //console.log('[碰撞检测] 检查玩家位置:', this.player.position.x.toFixed(2), this.player.position.y.toFixed(2));
-
-        // 检查玩家和每个障碍物的碰撞
-        for (const obstacle of this.obstacles) {
-            if (obstacle.checkCollision(this.player)) {
-                console.log('[碰撞通知] 玩家与障碍物碰撞');
-                this.gameOver();
-                return;
-            }
-        }
-
-        // 检查玩家和每个敌人的碰撞
-        for (const enemy of this.enemies) {
-            if (!enemy.node.active) continue;
-            if (enemy.checkCollision(this.player)) {
-                console.log('[碰撞通知] 玩家与敌人碰撞 - 敌人位置:', enemy.node.position.x.toFixed(2), enemy.node.position.y.toFixed(2));
-                this.gameOver();
-                return;
-            }
-        }
-    }
-
+    
     // 视角跟随
     updateCameraFollow() {
         if (!this.player) return;
@@ -340,8 +315,7 @@ export class Game extends Component {
             this.score = Math.max(0, Math.floor(this.maxPlayerY - this.startPlayerY));
         }
 
-        // 检查所有碰撞（使用碰撞盒）
-        this.checkCollisions();
+        
 
         // 更新视角跟随
         this.updateCameraFollow();
