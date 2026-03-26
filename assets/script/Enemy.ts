@@ -1,4 +1,4 @@
-import { _decorator, Component, Node, Sprite, SpriteFrame, Vec3, UITransform } from 'cc';
+import { _decorator, Component, Node, Sprite, SpriteFrame, Vec3, UITransform, Collider2D } from 'cc';
 import { Player } from './Player';
 const { ccclass, property } = _decorator;
 
@@ -106,19 +106,24 @@ export class Enemy extends Component {
         }
     }
 
-    // 检查与玩家的碰撞
-    checkCollision(playerX: number, playerY: number, playerRadius: number): boolean {
-        const enemyX = this.node.position.x;
-        const enemyY = this.node.position.y;
-        
+    // 检查与玩家的碰撞（使用距离检测）
+    checkCollision(playerNode: Node): boolean {
+        const playerPos = playerNode.position;
+        const enemyPos = this.node.position;
+
         // 计算距离
-        const distance = Math.sqrt(
-            Math.pow(playerX - enemyX, 2) + 
-            Math.pow(playerY - enemyY, 2)
-        );
-        
-        // 检查是否碰撞
-        return distance < playerRadius + this.enemyRadius;
+        const dx = playerPos.x - enemyPos.x;
+        const dy = playerPos.y - enemyPos.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        const collisionRadius = 40; // 碰撞半径（玩家 + 敌人）
+        const collided = distance < collisionRadius;
+
+        if (collided) {
+            console.log('[敌人碰撞检测] 距离:', distance.toFixed(2), '阈值:', collisionRadius, '玩家:', playerPos.x.toFixed(2), playerPos.y.toFixed(2), '敌人:', enemyPos.x.toFixed(2), enemyPos.y.toFixed(2));
+        }
+
+        return collided;
     }
 
     // 设置初始位置

@@ -1,4 +1,4 @@
-import { _decorator, Component, Node, director, Prefab, instantiate, Vec3, UITransform } from 'cc';
+import { _decorator, Component, Node, director, Prefab, instantiate, Vec3, UITransform, Collider2D } from 'cc';
 import { Player } from './Player';
 import { Obstacle } from './Obstacle';
 import { Enemy } from './Enemy';
@@ -38,7 +38,7 @@ export class Game extends Component {
     @property
     maxGapWidth: number = 300;
 
-    // 最小缺口偏移（-100表示缺口偏左，100表示缺口偏右）
+    // 最小缺口偏移
     @property
     minGapOffset: number = -100;
 
@@ -46,7 +46,7 @@ export class Game extends Component {
     @property
     maxGapOffset: number = 500;
 
-    // 敌人生成概率（0-1之间）
+    // 敌人生成概率
     @property
     enemySpawnChance: number = 0.3;
 
@@ -73,6 +73,9 @@ export class Game extends Component {
 
     // 得分
     private score: number = 0;
+    // 玩家Y最大距离
+    private startPlayerY: number = 0;
+    private maxPlayerY: number = 0;
 
     onLoad() {
         // 获取屏幕尺寸
@@ -80,9 +83,8 @@ export class Game extends Component {
             const transform = this.node.getComponent(UITransform);
             if (transform) {
                 this.screenHeight = transform.contentSize.height;
-                this.screenCenterY = 200; // 屏幕中心Y坐标
+                this.screenCenterY = 200;
                 this.cameraFollowThreshold = this.screenCenterY;
-                console.log('Screen height:', this.screenHeight);
             } else {
                 console.warn('UITransform component not found on Game node');
                 // 使用默认值
@@ -97,10 +99,14 @@ export class Game extends Component {
         this.node.addChild(this.obstacleContainer);
 
         // 初始化障碍物 - 从屏幕上方开始生成
-        // 第一个障碍物在屏幕上方200像素处
         this.lastObstacleY = 200;
-        console.log('Starting obstacle generation at Y:', this.lastObstacleY);
         this.generateInitialObstacles();
+
+        // 记录起始高度 + 初始化最大高度
+        if (this.player) {
+            this.startPlayerY = this.player.position.y;
+            this.maxPlayerY = this.startPlayerY;
+        }
 
         // 初始化得分
         this.score = 0;
@@ -136,8 +142,6 @@ export class Game extends Component {
             return;
         }
 
-        console.log('Generating obstacle at Y:', y);
-
         // 实例化障碍物
         const obstacleNode = instantiate(this.obstaclePrefab);
         this.obstacleContainer!.addChild(obstacleNode);
@@ -159,7 +163,6 @@ export class Game extends Component {
 
         // 设置障碍物位置
         obstacle.setGapPosition(y);
-        console.log('Obstacle created with gap width:', gapWidth, 'gap offset:', gapOffset);
 
         // 添加到障碍物列表
         this.obstacles.push(obstacle);
@@ -173,8 +176,6 @@ export class Game extends Component {
     // 在障碍物上方生成敌人
     generateEnemyOnObstacle(obstacle: Obstacle, obstacleY: number) {
         if (!this.enemyPrefab) return;
-
-        console.log('Generating enemy on obstacle at Y:', obstacleY);
 
         // 实例化敌人
         const enemyNode = instantiate(this.enemyPrefab);
@@ -215,51 +216,35 @@ export class Game extends Component {
             return;
         }
 
-        // 设置敌人位置（在障碍物上方）
-        const enemyY = obstacleY + 30; // 障碍物高度 + 一点间距
+        // 设置敌人位置（在障碍物顶部）
+        const obstacleHeight = 30; // 障碍物高度
+        const enemyY = obstacleY + obstacleHeight / 2 + 10; // 障碍物顶部 + 一点间距
         enemy.setStartPosition(enemyX, enemyY);
 
         // 添加到敌人列表
         this.enemies.push(enemy);
-        console.log('Enemy created at X:', enemyX, 'Y:', enemyY);
     }
 
     // 检查碰撞
     checkCollisions() {
         if (!this.player) return;
 
-        const playerComp = this.player.getComponent(Player);
-        if (!playerComp) return;
+        //console.log('[碰撞检测] 检查玩家位置:', this.player.position.x.toFixed(2), this.player.position.y.toFixed(2));
 
-        const birdX = this.player.position.x;
-        const birdY = this.player.position.y;
-        const birdRadius = 20; // 小鸟碰撞半径
-        const velocityY = playerComp.velocityY; // 获取小鸟的垂直速度
-
-        // 检查每个障碍物
+        // 检查玩家和每个障碍物的碰撞
         for (const obstacle of this.obstacles) {
-            // 检查碰撞
-            if (obstacle.checkCollision(birdX, birdY, birdRadius, velocityY)) {
-                // 游戏结束
+            if (obstacle.checkCollision(this.player)) {
+                console.log('[碰撞通知] 玩家与障碍物碰撞');
                 this.gameOver();
                 return;
             }
-
-            // 检查是否通过缺口
-            if (!obstacle.passed && obstacle.checkPassThrough(birdX, birdY, birdRadius)) {
-                obstacle.passed = true;
-                this.score++;
-                console.log('Score:', this.score);
-            }
         }
 
-        // 检查每个敌人
+        // 检查玩家和每个敌人的碰撞
         for (const enemy of this.enemies) {
             if (!enemy.node.active) continue;
-            
-            // 检查碰撞
-            if (enemy.checkCollision(birdX, birdY, birdRadius)) {
-                // 游戏结束
+            if (enemy.checkCollision(this.player)) {
+                console.log('[碰撞通知] 玩家与敌人碰撞 - 敌人位置:', enemy.node.position.x.toFixed(2), enemy.node.position.y.toFixed(2));
                 this.gameOver();
                 return;
             }
@@ -333,25 +318,32 @@ export class Game extends Component {
 
     // 游戏结束
     gameOver() {
-        console.log('Game Over! Final Score:', this.score);
+        console.log('[游戏结束] 最终分数:', this.score);
+        this.score = 0; // 重置分数
         // 可以在这里添加游戏结束逻辑，如显示游戏结束界面
-        // director.loadScene('gameOver');
+       
     }
 
     update(dt: number) {
-        // 更新 Player 的障碍物列表
-        if (this.player) {
-            const playerComp = this.player.getComponent(Player);
-            if (playerComp) {
-                playerComp.setObstacles(this.obstacles);
-            }
+        if (!this.player) return;
+
+        // 更新 Player 的障碍物列表（可以留空，不再依赖gap逻辑）
+        const playerComp = this.player.getComponent(Player);
+        if (playerComp) {
+            playerComp.setObstacles(this.obstacles);
         }
-        
-    
-       
+
+        // 根据玩家达到的最高 Y 更新分数（子弹高度增量得分）
+        const playerY = this.player.position.y;
+        if (playerY > this.maxPlayerY+300) {
+            this.maxPlayerY = playerY;
+            this.score = Math.max(0, Math.floor(this.maxPlayerY - this.startPlayerY));
+        }
+
+        // 检查所有碰撞（使用碰撞盒）
+        this.checkCollisions();
+
         // 更新视角跟随
         this.updateCameraFollow();
-   
-        this.checkCollisions();
     }
 }

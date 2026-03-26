@@ -76,7 +76,8 @@
       "__uuid__": "a91d1611-ab62-4d96-910c-8782d6cb7fd0",
       "__expectedType__": "cc.Prefab"
     },
-    "gapWidth": 150,
+    "gapWidth": 200,
+    "gapOffset": 100,
     "_id": ""
   },
   {
